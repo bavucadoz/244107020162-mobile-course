@@ -16,9 +16,12 @@ class MyApp extends StatelessWidget {
         appBar: AppBar(title: const Text("Profil Mahasiswa")),
         body: const Center(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.school, size:70),
-            SizedBox(height: 16),
-            Text('Arya Bayu Samodra', style: TextStyle(fontSize: 24)),
+            Icon(Icons.school_outlined, size:40),
+            SizedBox(height: 10),
+            Text('Arya Bayu Samodra', style: TextStyle(fontSize: 20)),
+            Text('NIM : 244107020162', style: TextStyle(fontSize: 16)),
+            Text('Kelas : TI-3G', style: TextStyle(fontSize: 16)),
+            SizedBox(height: 10),
             Text('Pemrograman Mobile - Minggu 1'),
           ]),
         ),
