@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+const kWideBreakpoint = 700.0;
+
 void main() => runApp(const DashboardApp());
 
 class DashboardApp extends StatefulWidget {
@@ -69,20 +71,20 @@ class DashboardPage extends StatelessWidget {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final columns = constraints.maxWidth >= 700 ? 2 : 1;
+          final columns = constraints.maxWidth >= kWideBreakpoint ? 2 : 1;
 
           return GridView.count(
             padding: const EdgeInsets.all(16),
             crossAxisCount: columns,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
-            childAspectRatio: 2.6,
+            childAspectRatio: 1.5,
             children: const [
               ProfileCard(),
-              DashboardCard(title: 'Assignments', value: '8'),
-              DashboardCard(title: 'Attendance', value: '92%'),
-              DashboardCard(title: 'Portfolio', value: 'Ready'),
-              DashboardCard(title: 'Current week', value: '02'),
+              InfoCard(title: 'Assignments', value: '8'),
+              InfoCard(title: 'Attendance', value: '92%'),
+              InfoCard(title: 'Portfolio', value: 'Ready'),
+              InfoCard(title: 'Current week', value: '02'),
             ],
           );
         },
@@ -91,8 +93,8 @@ class DashboardPage extends StatelessWidget {
   }
 }
 
-class DashboardCard extends StatelessWidget {
-  const DashboardCard({required this.title, required this.value, super.key});
+class InfoCard extends StatelessWidget {
+  const InfoCard({required this.title, required this.value, super.key});
   final String title;
   final String value;
 
@@ -117,55 +119,77 @@ class ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Semantics(
       label: 'Profil mahasiswa',
-      child: Container(
-        width: 320,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.indigo.shade50,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                const CircleAvatar(
-                  child: Icon(Icons.person),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'Nama Mahasiswa',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text('Arya Bayu Samodra'),
-                    ],
+      child: Card(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
+                    child: const Icon(Icons.person),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            const Row(children: [
-              Expanded(child: Text('NIM')),
-              Text('244107020162'),
-            ]),
-            const Row(children: [
-              Expanded(child: Text('Kelas')),
-              Text('TI-3G'),
-            ]),
-            const Row(children: [
-              Expanded(child: Text('Email')),
-              Text('aryabayusamodra@gmail.com'),
-            ]),
-          ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Nama Mahasiswa',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelMedium,
+                        ),
+                        Text(
+                          'Arya Bayu Samodra',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: const [
+                  Expanded(child: Text('NIM')),
+                  Text('244107020162'),
+                ],
+              ),
+              Row(
+                children: const [
+                  Expanded(child: Text('Kelas')),
+                  Text('TI-3G'),
+                ],
+              ),
+              Row(
+                children: [
+                  const Expanded(child: Text('Email')),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'aryabayusamodra@gmail.com',
+                      textAlign: TextAlign.end,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
