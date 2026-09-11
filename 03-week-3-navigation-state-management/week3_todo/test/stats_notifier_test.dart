@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Sesuaikan import path dengan nama project kamu di pubspec.yaml
-import 'package:week3_todo/pages/stats_page.dart';
+import 'package:week3_todo/pages/ai_stats_page.dart';
 
 void main() {
   group('StatsNotifier Unit Test', () {

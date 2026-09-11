@@ -1,39 +1,58 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/todo_provider.dart';
+import '../widgets/todo_tile.dart';
 
 class TodoPage extends ConsumerWidget {
   const TodoPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final todos = ref.watch(todoListProvider);
+    // Membaca list yang sudah difilter
+    final filteredTodos = ref.watch(filteredTodosProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('ToDo Riverpod')),
-      body: todos.isEmpty
+      appBar: AppBar(
+        title: const Text('ToDo Riverpod'),
+        actions: [
+          // Menu popup untuk mengubah filter
+          PopupMenuButton<TodoFilter>(
+            onSelected: (filter) =>
+                ref.read(todoFilterProvider.notifier).state = filter,
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: TodoFilter.all, child: Text('Semua')),
+              PopupMenuItem(value: TodoFilter.active, child: Text('Belum Selesai')),
+              PopupMenuItem(value: TodoFilter.completed, child: Text('Selesai')),
+            ],
+          ),
+        ],
+      ),
+      body: filteredTodos.isEmpty
           ? const Center(child: Text('Belum ada tugas'))
           : ListView.builder(
-              itemCount: todos.length,
-              itemBuilder: (context, index) => ListTile(
-                leading: Checkbox(
-                  value: todos[index].done,
-                  onChanged: (_) =>
-                      ref.read(todoListProvider.notifier).toggle(index),
-                ),
-                title: Text(
-                  todos[index].title,
-                  style: TextStyle(
-                      decoration: todos[index].done
-                          ? TextDecoration.lineThrough
-                          : null),
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () =>
-                      ref.read(todoListProvider.notifier).remove(index),
-                ),
-              ),
+              itemCount: filteredTodos.length,
+              itemBuilder: (context, index) {
+                final todo = filteredTodos[index];
+                
+                return TodoTile(
+                  title: todo.title,
+                  isDone: todo.done,
+                  onToggle: (_) {
+                    // Cari index asli dari seluruh list agar tidak salah ubah saat difilter
+                    final originalIndex = ref.read(todoListProvider).indexOf(todo);
+                    if (originalIndex != -1) {
+                      ref.read(todoListProvider.notifier).toggle(originalIndex);
+                    }
+                  },
+                  onDelete: () {
+                    // Cari index asli dari seluruh list agar tidak salah hapus saat difilter
+                    final originalIndex = ref.read(todoListProvider).indexOf(todo);
+                    if (originalIndex != -1) {
+                      ref.read(todoListProvider.notifier).remove(originalIndex);
+                    }
+                  },
+                );
+              },
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddDialog(context, ref),
@@ -61,44 +80,13 @@ class TodoPage extends ConsumerWidget {
                     .read(todoListProvider.notifier)
                     .add(controller.text.trim());
               }
+              controller.clear();
+              
               Navigator.pop(context);
             },
             child: const Text('Tambah'),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class ProductPage extends ConsumerWidget {
-  const ProductPage({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final productsAsync = ref.watch(productsProvider);
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Produk')),
-      body: productsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Gagal memuat: $err'),
-              FilledButton(
-                onPressed: () => ref.invalidate(productsProvider),
-                child: const Text('Coba lagi'),
-              ),
-            ],
-          ),
-        ),
-        data: (products) => ListView.builder(
-          itemCount: products.length,
-          itemBuilder: (context, index) =>
-              ListTile(title: Text(products[index])),
-        ),
       ),
     );
   }
