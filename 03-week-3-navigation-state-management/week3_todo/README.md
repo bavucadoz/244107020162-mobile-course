@@ -15,3 +15,14 @@
     Ya, sekarang semuanya lolos tanpa ada masalah sama sekali
     [ai](../screenshots/ai-flutter-analyze.png)
     [ai](../screenshots/ai-flutter-test.png)
+
+---
+## Checklist verifikasi mandiri
+[mandiri](../screenshots/mandiri-pindah-hal1.png)
+[mandiri](../screenshots/mandiri-pindah-hal2.png)
+
+- [✓] Navigasi GoRouter bekerja: pindah halaman, back, dan akses path detail langsung.
+- [✓] ProviderScope membungkus root aplikasi; state ToDo bertahan saat berpindah halaman.
+- [✓] UI AsyncValue menangani loading, error, dan success, bukan hanya success.
+- [✓] flutter test dan analyze tanpa issue dan semua test lulus.
+    [mandiri](../screenshots/mandiri-flutter.png)
