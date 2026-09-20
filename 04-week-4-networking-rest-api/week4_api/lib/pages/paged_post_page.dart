@@ -75,7 +75,6 @@ class _PagedPostPageState extends ConsumerState<PagedPostPage> {
             );
           }
 
-          // Pemanggilan PostTile yang ringkas
           return PostTile(post: state.items[index]);
         },
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../data/models/post.dart';
 
 class PostTile extends StatelessWidget {
@@ -17,6 +18,10 @@ class PostTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
+      onTap: () {
+        // Navigasi ke halaman detail post
+        context.push('/post/${post.id}');
+      },
     );
   }
 }

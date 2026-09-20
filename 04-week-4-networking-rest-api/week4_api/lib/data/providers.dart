@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:async';
 import 'api_client.dart';
 import 'models/post.dart';
 import 'repositories/post_repository.dart';
@@ -38,6 +38,26 @@ final postListProvider =
         // final dan mudah diuji (tanpa ini, future provider di-test
         // akan me-retry dan menggantung).
         retry: (retryCount, error) => null);
+
+/// Provider untuk detail post berdasarkan ID.
+/// Mengecek cache dari postListProvider dulu, jika tidak ada baru fetch via repository.
+final postDetailProvider =
+    FutureProvider.autoDispose.family<Post, int>((ref, id) async {
+  final listState = ref.watch(postListProvider);
+
+  // 1. Coba cari di list yang sudah ada di memory
+  if (listState.hasValue && listState.value != null) {
+    final cachedPost =
+        listState.value!.where((post) => post.id == id).firstOrNull;
+    if (cachedPost != null) {
+      return cachedPost;
+    }
+  }
+
+  // 2. Jika tidak ditemukan di list, ambil langsung via API repository
+  final repository = ref.watch(postRepositoryProvider);
+  return repository.fetchPostById(id);
+});
 
 /// Helper khusus testing (letakkan di providers.dart): membaca state
 /// pertama yang bukan loading lewat listener + completer, sehingga
