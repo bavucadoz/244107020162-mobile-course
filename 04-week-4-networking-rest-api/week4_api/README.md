@@ -23,3 +23,27 @@
     [Screenshot AI](../screenshots/ai-flutter.png)
     
 ---
+## Checklist Verifikasi Mandiri
+
+- [✓] UI tidak memanggil Dio langsung, semua akses data lewat repository + provider.
+- [✓] Empat state tampil benar: loading, error (+ retry), empty, success.
+- [✓?] Pagination: data bertambah saat scroll, tidak ada request ganda, ada indikator akhir data. (Data Load cukup lama)
+- [✓] flutter analyze tanpa issue dan semua test lulus.
+
+---
+## Refleksi
+- Mengapa UI dilarang memanggil Dio langsung? Apa yang rusak jika aturan ini dilanggar?
+    = Karena hal ini melanggar prinsip Separation of Concerns. UI seharusnya hanya mengurus tampilan dan interaksi pengguna, bukan detail protokol HTTP, header, URL, atau serialisasi JSON. Jika dilanggar, Widget UI tidak bisa di-unit test secara terisolasi tanpa melakukan panggilan jaringan sungguhan atau konfigurasi mocking HTTP yang rumit.
+- Kapan pagination client-side cukup, dan kapan harus mengandalkan pagination server (_page/_limit)?
+    = Client-Side cukup jika jumlah data relatif kecil dan tetap. Kita bisa mengandalkan Server-Side (_page/_limit) jika Data berjumlah ribuan/berpotensi terus bertambah.
+- Bagaimana exception repository berubah menjadi AsyncError tanpa try/catch di setiap widget? Kapan try/catch eksplisit tetap dibutuhkan?
+    = Pada Riverpod, exception dari repository otomatis berubah menjadi AsyncError secara deklaratif karena metode build() pada AsyncNotifier atau FutureProvider membungkus proses asynchronous dan menangkap error yang dilempar dari repository. Dengan begitu, UI cukup membaca state secara responsif menggunakan .when(error: ...) tanpa perlu menulis blok try/catch di setiap widget. Meski demikian, try/catch eksplisit tetap dibutuhkan pada aksi imperatif pengguna—seperti saat menekan tombol submit, delete, atau update—agar aplikasi bisa menangani efek samping (side effect) lokal seperti menampilkan SnackBar, Toast, atau dialog peringatan tanpa mengubah seluruh tampilan layar menjadi state error.
+- Bagian mana dari hasil AI yang Anda perbaiki, dan mengapa?
+    = Perbaikan pada kode hasil AI berfokus pada pembetulan sintaks Riverpod 2.x, peningkatan null-safety, dan perapian struktur kode. Kelas yang tidak ada dalam package seperti AutoDisposeFamilyAsyncNotifier diganti dengan sintaks FamilyAsyncNotifier serta modifier .autoDispose.family agar variabel bawaan seperti ref, state, dan arg dapat terdeteksi oleh compiler. Proses konversi fromJson diperbaiki dari type casting langsung menjadi safe parsing dengan nilai fallback default untuk mencegah aplikasi crash saat menerima respons null dari API. Terakhir, komponen duplikat PostTile dipisahkan ke folder widgets/post_tile.dart, salah ketik CrossAlignment dibetulkan menjadi CrossAxisAlignment, serta import yang tidak terpakai dibersihkan sehingga flutter analyze berjalan bersih tanpa peringatan.
+---
+
+## Mini Project
+[ss](../screenshots/project.png)
+[ss](../screenshots/project-detail.png)
+[ss](../screenshots/flutter-project.png)
+[ss](../screenshots/flutter-test.png)
