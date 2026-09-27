@@ -5,6 +5,7 @@ import 'data/repositories/api_client.dart';
 import 'data/local/post.dart';
 import 'data/repositories/post_repository.dart';
 import 'pages/settings_pages.dart'; 
+import 'data/local/note.dart';
 import 'data/repositories/note_repository.dart';
 
 final dioProvider = Provider<Dio>((ref) => createDio());
@@ -13,6 +14,12 @@ final noteRepositoryProvider = Provider((ref) => NoteRepository());
 final postRepositoryProvider = Provider<PostRepository>(
   (ref) => PostRepository(ref.watch(dioProvider)),
 );
+
+// Provider untuk mengambil daftar catatan (FutureProvider)
+final notesProvider = FutureProvider<List<Note>>((ref) async {
+  final repo = ref.watch(noteRepositoryProvider);
+  return repo.fetchNotes();
+}, retry: (retryCount, error) => null);
 
 class PostListNotifier extends AsyncNotifier<List<Post>> {
   @override
