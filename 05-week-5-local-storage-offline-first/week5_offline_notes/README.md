@@ -1,6 +1,10 @@
 # 05 | Local Storage & Offline First
 
 ---
+## Tampilan
+> ![Tampilan](screenshots/tampilan.png)
+
+---
 ## AI Verification Checklist
 
 - [✓] Apakah AI menempatkan daftar catatan di SharedPreferences? (menolak: rapuh untuk koleksi).
@@ -17,10 +21,12 @@
 ---
 ## Checklist Verifikasi Mandiri
 
-- [✓] 
-- [✓] 
-- [✓?] 
-- [✓] 
+- [✓] UI tidak memanggil SQLite/SharedPreferences langsung; semua lewat repository + provider.
+- [✓] Aplikasi penuh berfungsi dalam mode pesawat: baca, tambah, hapus catatan.
+- [✓X] Badge dirty akurat sebelum/sesudah sync; cache posts tampil tanpa internet. [cache posts tidak tertampil :( ]
+- [✓] flutter analyze tanpa issue dan semua test lulus.
+    > ![flutter](screenshots/flutter-test-analyze)
+- [✓] Hasil AI diverifikasi dan didokumentasikan pada folder docs/. [docs](/05-week-5-local-storage-offline-first/docs/AI_Challenge.md)
 
 ---
 ## Refleksi

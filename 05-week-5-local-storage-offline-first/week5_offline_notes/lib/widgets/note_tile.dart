@@ -15,6 +15,11 @@ class NoteTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Format tanggal dan waktu perubahan (updatedAt)
+    final date = note.updatedAt.toLocal();
+    final formattedDate =
+        '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+
     return ListTile(
       onTap: onTap,
       title: Row(
@@ -44,10 +49,24 @@ class NoteTile extends StatelessWidget {
             ),
         ],
       ),
-      subtitle: Text(
-        note.body.isNotEmpty ? note.body : 'Tanpa isi catatan',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 4),
+          Text(
+            note.body.isNotEmpty ? note.body : 'Tanpa isi catatan',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Diperbarui: $formattedDate • Status: ${note.dirty ? "Dirty" : "Synced"}',
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
       ),
       trailing: IconButton(
         icon: const Icon(Icons.delete, color: Colors.red),

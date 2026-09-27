@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../data/repositories/note_repository.dart';
 import '../data/local/note.dart';
-import 'settings_pages.dart';
+import '../widgets/note_tile.dart';
 
 final noteRepositoryProvider = Provider((ref) => NoteRepository());
 
@@ -89,10 +90,7 @@ class NotesPage extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsPage()),
-            ),
+            onPressed: () => context.push('/settings'),
           ),
         ],
       ),
@@ -105,20 +103,19 @@ class NotesPage extends ConsumerWidget {
             itemCount: notes.length,
             itemBuilder: (context, index) {
               final note = notes[index];
-              return ListTile(
-                title: Text(note.title),
-                subtitle: Text(
-                  '${note.body}\nStatus: ${note.dirty ? "Dirty (Belum Sync)" : "Synced"}',
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () async {
-                    if (note.id != null) {
-                      await ref.read(noteRepositoryProvider).deleteNote(note.id!);
-                      ref.invalidate(notesProvider);
-                    }
-                  },
-                ),
+              return NoteTile(
+                note: note,
+                onTap: () {
+                  if (note.id != null) {
+                    context.push('/note/${note.id}');
+                  }
+                },
+                onDelete: () async {
+                  if (note.id != null) {
+                    await ref.read(noteRepositoryProvider).deleteNote(note.id!);
+                    ref.invalidate(notesProvider);
+                  }
+                },
               );
             },
           );
