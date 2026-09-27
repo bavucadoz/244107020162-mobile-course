@@ -46,3 +46,14 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+/android
+/ios
+/linux
+/macos
+/web
+/windows
+/.gitignore
+/.metadata
+/analysis_options.yaml
+/pubspec.lock
+/pubspec.yaml
