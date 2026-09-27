@@ -5,9 +5,11 @@ import 'data/repositories/api_client.dart';
 import 'data/local/post.dart';
 import 'data/repositories/post_repository.dart';
 import 'pages/settings_pages.dart'; 
+import 'data/repositories/note_repository.dart';
 
 final dioProvider = Provider<Dio>((ref) => createDio());
 
+final noteRepositoryProvider = Provider((ref) => NoteRepository());
 final postRepositoryProvider = Provider<PostRepository>(
   (ref) => PostRepository(ref.watch(dioProvider)),
 );

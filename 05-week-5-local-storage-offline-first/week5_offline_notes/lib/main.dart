@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'data/prefs.dart';
-import 'pages/note_page.dart';
+
+import 'router.dart';
 import 'pages/settings_pages.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final prefsRepo = PrefsRepository();
-  await prefsRepo.markOpenedNow();
 
   runApp(
     const ProviderScope(
@@ -24,13 +22,13 @@ class MyApp extends ConsumerWidget {
     final darkModeAsync = ref.watch(darkModeProvider);
     final isDarkMode = darkModeAsync.value ?? false;
 
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Offline Notes',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.light(useMaterial3: true),
       darkTheme: ThemeData.dark(useMaterial3: true),
       themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      home: const NotesPage(),
+      routerConfig: router,
     );
   }
 }
