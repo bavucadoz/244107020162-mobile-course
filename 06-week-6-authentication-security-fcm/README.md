@@ -2,7 +2,7 @@
 
 ---
 ## Tampilan
-
+> ![Tampilan](screenshots/Screenshot_1791125047.png)
 
 ---
 ## AI Verification Checklist
@@ -24,10 +24,23 @@
 ## Checklist Verifikasi Mandiri
 
 - [✓] Token hanya di flutter_secure_storage, tidak di SharedPreferences/log/screenshot penuh.
+    > ![token](screenshots/fcm-debug.png)
+
 - [✓] 401 memicu refresh sekali lalu retry; refresh mati memaksa login ulang.
+    > ![login](screenshots/login.png)
+    > ![izin notif](screenshots/izin-notif.png)
+
 - [✓] Ketiga app state teruji dengan tabel bukti; klik masuk ke rute yang benar
+    > ![background](screenshots/background-notif.png)
+    > ![foreground](screenshots/foreground.png)
+    > ![terminate](screenshots/terminate-notif.png)
+
 - [✓] Topik untuk broadcast, token untuk pesan personal.
+
 - [✓] flutter analyze bersih dan semua test lulus.
+    > ![flutter analyze-test](screenshots/flutter-analyze+test.png)
+    > ![flutter test](screenshots/flutter-test.png)
+
 - [✓] Hasil AI diverifikasi dan didokumentasikan pada folder docs/. [docs](/06-week-6-authentication-security-fcm/docs/AI_Challenge.md)
 
 ---
