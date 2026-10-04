@@ -1,8 +1,11 @@
+// ignore_for_file: unnecessary_underscores, avoid_print
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:go_router/go_router.dart';
+import 'routes.dart'; 
 
 import 'firebase_options.dart'; 
 import 'messaging/push_service.dart';
@@ -38,22 +41,22 @@ final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
 
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: AppRoutes.home,
     redirect: (context, state) {
       if (authState.isLoading) return null;
 
       final loggedIn = authState.value ?? false;
-      final goingLogin = state.matchedLocation == '/login';
+      final goingLogin = state.matchedLocation == AppRoutes.login;
 
-      if (!loggedIn && !goingLogin) return '/login';
-      if (loggedIn && goingLogin) return '/';
+      if (!loggedIn && !goingLogin) return AppRoutes.login;
+      if (loggedIn && goingLogin) return AppRoutes.home;
       return null;
     },
     routes: [
-      GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
-      GoRoute(path: '/', builder: (_, __) => const HomePage()),
+      GoRoute(path: AppRoutes.login, builder: (_, __) => const LoginPage()),
+      GoRoute(path: AppRoutes.home, builder: (_, __) => const HomePage()),
       GoRoute(
-        path: '/pengumuman/:id',
+        path: AppRoutes.announcementDetail,
         builder: (_, state) => AnnouncementPage(id: state.pathParameters['id'] ?? ''),
       ),
     ],

@@ -23,26 +23,23 @@
 ---
 ## Checklist Verifikasi Mandiri
 
-- [✓] UI tidak memanggil SQLite/SharedPreferences langsung; semua lewat repository + provider.
-- [✓] Aplikasi penuh berfungsi dalam mode pesawat: baca, tambah, hapus catatan.
-    > ![baca](screenshots/detail-catatan.png)
-    > ![tambah](screenshots/tambah.png)
-- [✓X] Badge dirty akurat sebelum/sesudah sync; cache posts tampil tanpa internet. [cache posts tidak tertampil :( ]
-    > ![dirty](screenshots/belum-singkron.png)
-    > ![sync](screenshots/singkron.png)
-- [✓] flutter analyze tanpa issue dan semua test lulus.
-    > ![flutter](screenshots/flutter-test-analyze.png)
-- [✓] Hasil AI diverifikasi dan didokumentasikan pada folder docs/. [docs](/05-week-5-local-storage-offline-first/docs/AI_Challenge.md)
+- [✓] Token hanya di flutter_secure_storage, tidak di SharedPreferences/log/screenshot penuh.
+- [✓] 401 memicu refresh sekali lalu retry; refresh mati memaksa login ulang.
+- [✓] Ketiga app state teruji dengan tabel bukti; klik masuk ke rute yang benar
+- [✓] Topik untuk broadcast, token untuk pesan personal.
+- [✓] flutter analyze bersih dan semua test lulus.
+- [✓] Hasil AI diverifikasi dan didokumentasikan pada folder docs/. [docs](/06-week-6-authentication-security-fcm/docs/AI_Challenge.md)
 
 ---
 ## Refleksi
 
-- Mengapa daftar catatan tidak boleh disimpan di SharedPreferences? Apa yang rusak jika aturan ini dilanggar?
-    = Karena SharedPreferences menggunakan berkas key-value tunggal (XML/plist) yang dibaca secara utuh ke dalam memori (RAM). Yang trejadi jika dilanggar adalah pembacaan file JSON raksasa akan memicu UI freezing/lag, konsumsi RAM membengkak, serta berisiko data korup.
-- Kapan cache-first cukup, dan kapan Anda membutuhkan strategi lain (misalnya network-first untuk data harga real-time)?
-    = cache-first cukup saat data yang jarang berubah atau ketika kecepatan respon UI adalah prioritas utama (misal: artikel, profil pengguna, atau catatan pribadi). Dibutuhkannya strategi lain saat digunakan untuk data kritis dan dinamis (misal: harga saham, sisa tiket, atau stok barang). Menampilkan data usang (stale data) pada skenario ini dapat menyebabkan transaksi finansial atau keputusan pengguna yang salah.
-- Bagaimana dirty flag berubah menjadi antrean sync tanpa memblokir UI? Kapan antrean terpisah (tabel outbox) menjadi perlu?
-    = Dirty flag berubah menjadi antrean sync saat membaca baris WHERE dirty = 1 dan mengunggahnya secara asynchronous di background thread, sehingga UI tetap responsif untuk interaksi pengguna. Tabel Outbox diperlukan saat operasi mutasi bersifat kompleks dan berurutan, membutuhkan pencatatan riwayat retry counter, atau memerlukan penyimpanan payload log terpisah saat urutan eksekusi sync sangat krusial.
+- Mengapa refresh token tidak boleh disimpan di SharedPreferences? Apa risikonya bila bocor?
+    = Karena SharedPreferences menyimpan data dalam bentuk plaintext (tanpa enkripsi) yang mudah dibaca jika perangkat mengalami root atau dieksploitasi oleh aplikasi lain. Risikonya sangat tinggi karena refresh token memiliki masa aktif yang panjang; jika penyerang berhasil mencurinya, mereka dapat terus menerus menghasilkan access token baru untuk menyamar sebagai pengguna tanpa perlu memasukkan kata sandi lagi. Oleh karena itu, token harus disimpan di penyimpanan terenkripsi seperti flutter_secure_storage.
+- Apa yang rusak bila onTokenRefresh diabaikan selama satu semester perkuliahan?
+    = Jika diabaikan, sistem backend kampus akan menyimpan token perangkat yang sudah kedaluwarsa, basi, atau berubah akibat pengguna melakukan reinstall aplikasi atau clear data. Akibatnya, notifikasi penting seperti pengumuman nilai, perubahan jadwal kuliah, atau informasi mendesak tidak akan pernah sampai (delivery failure) ke perangkat mahasiswa tersebut selama satu semester penuh.
+- Kapan memakai topik dan kapan memakai token perangkat? Beri contoh pesan kampus untuk masing-masing
+    = Topik digunakan untuk pengiriman pesan massal atau penyiaran (broadcast) ke sekelompok orang sekaligus tanpa harus melacak token individual. Contohnya, "Pengumuman libur nasional untuk seluruh mahasiswa angkatan.". 
+    Sedangkan, Token Perangkat digunakan untuk pesan yang bersifat personal, rahasia, atau spesifik hanya untuk satu pengguna tertentu. Contohnya, "Tagihan SPP semester ini telah terverifikasi, silakan cek detail nilai Anda.".
 - Bagian mana dari rekomendasi AI yang Anda tolak, dan mengapa?
-    = Bagian yang saya tolak adalah rekomendasi penggunaan ORM Drift yang mewajibkan code generation. Karena, untuk praktikum/tugas ini, sudah disarankan sejak awal menggunakan sqflite. DI tambah lagi, sqflite jauh lebih efisien karena memberikan kontrol query langsung, waktu kompilasi yang lebih cepat tanpa ketergantungan generator, dan sudah memenuhi seluruh kriteria dirty flag serta pengujian Fake Repository.
+    = Saya menolak struktur awal draf AI yang membungkus logika notifikasi ke dalam kelas instansiasi yang kaku dan terikat Riverpod. Saya memperbaikinya dengan mengubah fungsi-fungsi tersebut menjadi sekumpulan fungsi modular mandiri (top-level functions) di push_service.dart. Tujuannya agar struktur kode lebih sederhana, mudah dipahami dalam konteks pengembangan, serta memastikan penanganan background handler dan navigasi aman dari pelanggaran isolasi memori Flutter.
 ---

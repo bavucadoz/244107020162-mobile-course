@@ -1,5 +1,8 @@
+// ignore_for_file: avoid_print
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:campus_notify/routes.dart';
 
 // Inisialisasi plugin local notifications secara global
 final _local = FlutterLocalNotificationsPlugin();
@@ -61,11 +64,11 @@ Future<void> initFcmToken({
 }
 
 /// 4. Handler Tiga App State & Navigasi Payload (Foreground, Background, Terminated)
+/// Tangani notifikasi Foreground
 void listenForeground(void Function(String route) go) {
-  // A. FOREGROUND: FCM sistem tidak menampilkan banner otomatis, 
-  // maka kita tampilkan secara manual lewat Local Notifications.
   FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-    final String route = message.data['route']?.toString() ?? '/';
+    // Menggunakan fungsi murni untuk ekstraksi route
+    final String route = routeFromMessage(message.data);
     
     const androidDetails = AndroidNotificationDetails(
       'pengumuman_kampus_channel', 
@@ -83,19 +86,18 @@ void listenForeground(void Function(String route) go) {
     );
   });
 
-  // B. BACKGROUND -> OPENED APP: Klik banner sistem saat aplikasi di-minimize.
   FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    final String route = message.data['route']?.toString() ?? '/';
+    final String route = routeFromMessage(message.data);
     go(route);
   });
 }
 
-/// 5. Handle Terminated State (Aplikasi mati total dibuka dari notifikasi)
+/// Tangani Terminated State
 Future<void> handleTerminated(void Function(String route) go) async {
   final RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
   
   if (initialMessage != null) {
-    final String route = initialMessage.data['route']?.toString() ?? '/';
+    final String route = routeFromMessage(initialMessage.data);
     go(route);
   } else if (pendingDeepLink != null) {
     go(pendingDeepLink!);
@@ -117,4 +119,17 @@ Future<void> unsubscribeTopic() async {
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Tugas di sini hanya untuk pemrosesan ringan / logging data di latar belakang.
   print("Background message diterima di isolate terpisah: ${message.messageId}");
+}
+
+String routeFromMessage(Map<String, dynamic>? data) {
+  if (data == null) return AppRoutes.home;
+
+  // Ambil nilai rute dari payload data 
+  final String? route = data['route']?.toString();
+  
+  if (route != null && route.isNotEmpty) {
+    return route;
+  }
+
+  return AppRoutes.home;
 }
