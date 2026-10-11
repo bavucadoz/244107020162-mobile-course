@@ -1,58 +1,46 @@
-# 06 | Authentication, Security & FCM
+# 05 | Local Storage & Offline First
 
 ---
 ## Tampilan
-> ![Tampilan](screenshots/Screenshot_1791125047.png)
+> ![Tampilan](screenshots/tampilan.png)
 
 ---
 ## AI Verification Checklist
 
-- [✓] Apakah background handler berupa fungsi top-level dengan @pragma('vm:entry-point')? (tolak jika berupa method kelas).
-    = Ya. Fungsi dideklarasikan di luar kelas (top-level) dengan anotasi tersebut agar dapat dijalankan oleh sistem pada isolate terpisah saat aplikasi tertutup.
-- [✓] Apakah onTokenRefresh benar-benar mengirim token baru ke backend, bukan hanya dicetak ke log?
-    = Ya. Listener onTokenRefresh memanggil fungsi asinkron yang mengeksekusi request HTTP (_dio.post) untuk memperbarui token di server.
-- [✓] Apakah foreground memakai local notification manual? (tanpa ini banner tidak muncul saat aplikasi terbuka).
-    = Ya. Menggunakan flutter_local_notifications karena FCM secara default tidak menampilkan system banner secara otomatis saat aplikasi dalam kondisi aktif.
-- [✓] Apakah klik dari ketiga state (foreground/background/terminated) masuk ke rute yang benar? Buktikan dengan tabel pengujian.
-    = Ya. Ditangani secara komprehensif melalui callback banner lokal, onMessageOpenedApp, dan getInitialMessage yang meneruskan payload ke router.
-- [✓] Apakah token/secret tidak di-hardcode dan tidak di-log penuh? Perbaiki bila AI melanggarnya.
-    = Ya. Kredensial dimuat secara dinamis via opsi aman, dan token FCM ditampilkan terpotong (masked) untuk mencegah kebocoran data sensitif.
+- [✓] Apakah AI menempatkan daftar catatan di SharedPreferences? (menolak: rapuh untuk koleksi).
+    = Tidak. AI menolak penggunaan SharedPreferences untuk menyimpan daftar catatan dan hanya merekomendasikannya untuk preferensi tema tunggal (dark_mode), karena SharedPreferences sangat rapuh dan lambat untuk data koleksi/terstruktur.
+- [✓] Apakah skema AI mendukung antrean sync (dirty flag / updated_at) atau hanya CRUD polos?
+    = Ya. Skema AI mendukung antrean sync offline-first dengan menyediakan kolom dirty (penanda status sinkronisasi ke server) dan updated_at (timestamp untuk resolusi konflik Last-Write-Wins).
+- [✓] Apakah klaim "real-time" AI didukung stream (Drift/watch) atau hanya asumsi?
+    = Ya. Klaim reaktivitas terbukti secara teknis melalui mekanisme Stream terintegrasi (.watch() pada Drift/Hive) serta state invalidation reaktif (ref.invalidate()) pada Riverpod + sqflite.
+- [✓] Apakah estimasi boilerplate AI masuk akal setelah Anda mencoba instalasinya (`flutter pub add` + migrasi skema)?
+    = Ya. SharedPreferences memiliki boilerplate paling minim, sqflite di tingkat menengah, sedangkan Drift/Hive memiliki boilerplate paling tinggi karena membutuhkan instalasi build_runner dan code generation
 - Keputusan final Anda beserta alasannya, boleh berbeda dari rekomendasi AI selama berargumen.
-    = Sebagai keputusan final, saya memilih untuk menggunakan pendekatan fungsi modular terpusat (top-level functions) di dalam file push_service.dart. Keputusan ini diambil karena strukturnya paling sesuai dengan modul praktikum yang sedang saya pelajari, sehingga lebih mudah dipahami alurnya ketimbang langsung menggunakan arsitektur kelas yang terlalu kompleks.
+    = Saya lebih memilih SharedPreferences untuk preferensi tema karena ringan dan tidak perlu konfigurasi database, dan sqflite untuk pengelolaan catatan karena memberikan pemahaman query SQL langsung serta bebas dari kompleksitas code untuk praktikum, dan siap diintegrasikan dengan Riverpod.
     
 ---
 ## Checklist Verifikasi Mandiri
 
-- [✓] Token hanya di flutter_secure_storage, tidak di SharedPreferences/log/screenshot penuh.
-    > ![token](screenshots/fcm-debug.png)
-
-- [✓] 401 memicu refresh sekali lalu retry; refresh mati memaksa login ulang.
-    > ![login](screenshots/login.png)
-    > ![izin notif](screenshots/izin-notif.png)
-
-- [✓] Ketiga app state teruji dengan tabel bukti; klik masuk ke rute yang benar
-    > ![background](screenshots/background-notif.png)
-    > ![foreground](screenshots/foreground.png)
-    > ![terminate](screenshots/terminate-notif.png)
-
-- [✓] Topik untuk broadcast, token untuk pesan personal.
-
-- [✓] flutter analyze bersih dan semua test lulus.
-    > ![flutter analyze-test](screenshots/flutter-analyze+test.png)
-    > ![flutter test](screenshots/flutter-test.png)
-
-- [✓] Hasil AI diverifikasi dan didokumentasikan pada folder docs/. [docs](/06-week-6-authentication-security-fcm/docs/AI_Challenge.md)
+- [✓] UI tidak memanggil SQLite/SharedPreferences langsung; semua lewat repository + provider.
+- [✓] Aplikasi penuh berfungsi dalam mode pesawat: baca, tambah, hapus catatan.
+    > ![baca](screenshots/detail-catatan.png)
+    > ![tambah](screenshots/tambah.png)
+- [✓X] Badge dirty akurat sebelum/sesudah sync; cache posts tampil tanpa internet. [cache posts tidak tertampil :( ]
+    > ![dirty](screenshots/belum-singkron.png)
+    > ![sync](screenshots/singkron.png)
+- [✓] flutter analyze tanpa issue dan semua test lulus.
+    > ![flutter](screenshots/flutter-test-analyze.png)
+- [✓] Hasil AI diverifikasi dan didokumentasikan pada folder docs/. [docs](/05-week-5-local-storage-offline-first/docs/AI_Challenge.md)
 
 ---
 ## Refleksi
 
-- Mengapa refresh token tidak boleh disimpan di SharedPreferences? Apa risikonya bila bocor?
-    = Karena SharedPreferences menyimpan data dalam bentuk plaintext (tanpa enkripsi) yang mudah dibaca jika perangkat mengalami root atau dieksploitasi oleh aplikasi lain. Risikonya sangat tinggi karena refresh token memiliki masa aktif yang panjang; jika penyerang berhasil mencurinya, mereka dapat terus menerus menghasilkan access token baru untuk menyamar sebagai pengguna tanpa perlu memasukkan kata sandi lagi. Oleh karena itu, token harus disimpan di penyimpanan terenkripsi seperti flutter_secure_storage.
-- Apa yang rusak bila onTokenRefresh diabaikan selama satu semester perkuliahan?
-    = Jika diabaikan, sistem backend kampus akan menyimpan token perangkat yang sudah kedaluwarsa, basi, atau berubah akibat pengguna melakukan reinstall aplikasi atau clear data. Akibatnya, notifikasi penting seperti pengumuman nilai, perubahan jadwal kuliah, atau informasi mendesak tidak akan pernah sampai (delivery failure) ke perangkat mahasiswa tersebut selama satu semester penuh.
-- Kapan memakai topik dan kapan memakai token perangkat? Beri contoh pesan kampus untuk masing-masing
-    = Topik digunakan untuk pengiriman pesan massal atau penyiaran (broadcast) ke sekelompok orang sekaligus tanpa harus melacak token individual. Contohnya, "Pengumuman libur nasional untuk seluruh mahasiswa angkatan.". 
-    Sedangkan, Token Perangkat digunakan untuk pesan yang bersifat personal, rahasia, atau spesifik hanya untuk satu pengguna tertentu. Contohnya, "Tagihan SPP semester ini telah terverifikasi, silakan cek detail nilai Anda.".
+- Mengapa daftar catatan tidak boleh disimpan di SharedPreferences? Apa yang rusak jika aturan ini dilanggar?
+    = Karena SharedPreferences menggunakan berkas key-value tunggal (XML/plist) yang dibaca secara utuh ke dalam memori (RAM). Yang trejadi jika dilanggar adalah pembacaan file JSON raksasa akan memicu UI freezing/lag, konsumsi RAM membengkak, serta berisiko data korup.
+- Kapan cache-first cukup, dan kapan Anda membutuhkan strategi lain (misalnya network-first untuk data harga real-time)?
+    = cache-first cukup saat data yang jarang berubah atau ketika kecepatan respon UI adalah prioritas utama (misal: artikel, profil pengguna, atau catatan pribadi). Dibutuhkannya strategi lain saat digunakan untuk data kritis dan dinamis (misal: harga saham, sisa tiket, atau stok barang). Menampilkan data usang (stale data) pada skenario ini dapat menyebabkan transaksi finansial atau keputusan pengguna yang salah.
+- Bagaimana dirty flag berubah menjadi antrean sync tanpa memblokir UI? Kapan antrean terpisah (tabel outbox) menjadi perlu?
+    = Dirty flag berubah menjadi antrean sync saat membaca baris WHERE dirty = 1 dan mengunggahnya secara asynchronous di background thread, sehingga UI tetap responsif untuk interaksi pengguna. Tabel Outbox diperlukan saat operasi mutasi bersifat kompleks dan berurutan, membutuhkan pencatatan riwayat retry counter, atau memerlukan penyimpanan payload log terpisah saat urutan eksekusi sync sangat krusial.
 - Bagian mana dari rekomendasi AI yang Anda tolak, dan mengapa?
-    = Saya menolak struktur awal draf AI yang membungkus logika notifikasi ke dalam kelas instansiasi yang kaku dan terikat Riverpod. Saya memperbaikinya dengan mengubah fungsi-fungsi tersebut menjadi sekumpulan fungsi modular mandiri (top-level functions) di push_service.dart. Tujuannya agar struktur kode lebih sederhana, mudah dipahami dalam konteks pengembangan, serta memastikan penanganan background handler dan navigasi aman dari pelanggaran isolasi memori Flutter.
+    = Bagian yang saya tolak adalah rekomendasi penggunaan ORM Drift yang mewajibkan code generation. Karena, untuk praktikum/tugas ini, sudah disarankan sejak awal menggunakan sqflite. DI tambah lagi, sqflite jauh lebih efisien karena memberikan kontrol query langsung, waktu kompilasi yang lebih cepat tanpa ketergantungan generator, dan sudah memenuhi seluruh kriteria dirty flag serta pengujian Fake Repository.
 ---
