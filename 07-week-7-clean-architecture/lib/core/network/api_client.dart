@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 Dio createDio() {
   final dio = Dio(
@@ -14,3 +15,5 @@ Dio createDio() {
   );
   return dio;
 }
+
+final dioProvider = Provider<Dio>((ref) => createDio());

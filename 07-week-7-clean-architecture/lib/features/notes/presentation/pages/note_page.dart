@@ -1,21 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../data/repositories/note_repository.dart';
-import '../data/local/note.dart';
+
+import '../providers/notes_providers.dart';
 import '../widgets/note_tile.dart';
 
-final noteRepositoryProvider = Provider((ref) => NoteRepository());
-
-// Fetch daftar catatan dari database SQLite
-final notesProvider = FutureProvider.autoDispose<List<Note>>((ref) async {
-  return ref.watch(noteRepositoryProvider).fetchNotes();
-});
-
-// Hitung jumlah catatan dengan status dirty (belum tersinkron)
 final dirtyCountProvider = FutureProvider.autoDispose<int>((ref) async {
-  ref.watch(notesProvider);
-  return ref.watch(noteRepositoryProvider).countDirty();
+  ref.watch(notesProvider); 
+  final repo = ref.watch(noteRepositoryProvider);
+  
+  final result = await repo.countDirty();
+  if (result.failure != null) {
+    throw Exception(result.failure!.message);
+  }
+  return result.count; 
 });
 
 class NotesPage extends ConsumerWidget {
@@ -50,10 +48,12 @@ class NotesPage extends ConsumerWidget {
           ElevatedButton(
             onPressed: () async {
               if (titleController.text.isNotEmpty) {
+                // Memanggil layer data (atau Use Case)
                 await ref.read(noteRepositoryProvider).addNote(
                       title: titleController.text,
                       body: bodyController.text,
                     );
+                // Meminta UI memuat ulang data
                 ref.invalidate(notesProvider);
                 if (dialogCtx.mounted) Navigator.pop(dialogCtx);
               }
@@ -67,6 +67,7 @@ class NotesPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 1. Pantau State dari Provider
     final notesAsync = ref.watch(notesProvider);
     final dirtyCount = ref.watch(dirtyCountProvider).value ?? 0;
 
@@ -74,7 +75,6 @@ class NotesPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Catatan Offline'),
         actions: [
-          // Tombol Sync dengan indikator Badge catatan dirty
           IconButton(
             icon: Badge(
               label: Text('$dirtyCount'),
@@ -83,8 +83,8 @@ class NotesPage extends ConsumerWidget {
             ),
             onPressed: () async {
               final repo = ref.read(noteRepositoryProvider);
-              await Future.delayed(const Duration(seconds: 1)); // Simulasi delay server
-              await repo.markAllSynced();
+              await Future.delayed(const Duration(seconds: 1));
+              await repo.markAllSynced(); // Pastikan ini ada di interface Repository Anda
               ref.invalidate(notesProvider);
             },
           ),
@@ -94,7 +94,13 @@ class NotesPage extends ConsumerWidget {
           ),
         ],
       ),
+      // 2. Gunakan pola jobsheet (state.when) di dalam body Scaffold
       body: notesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => ErrorView(
+          message: '$e',
+          onRetry: () => ref.invalidate(notesProvider),
+        ),
         data: (notes) {
           if (notes.isEmpty) {
             return const Center(child: Text('Belum ada catatan.'));
@@ -106,9 +112,7 @@ class NotesPage extends ConsumerWidget {
               return NoteTile(
                 note: note,
                 onTap: () {
-                  if (note.id != null) {
-                    context.push('/note/${note.id}');
-                  }
+                  if (note.id != null) context.push('/note/${note.id}');
                 },
                 onDelete: () async {
                   if (note.id != null) {
@@ -120,12 +124,30 @@ class NotesPage extends ConsumerWidget {
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Error: $err')),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddDialog(context, ref),
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+// --- Widget Error (Bisa dipisah ke file tersendiri) ---
+class ErrorView extends StatelessWidget {
+  const ErrorView({super.key, required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(message, style: const TextStyle(color: Colors.red)),
+          ElevatedButton(onPressed: onRetry, child: const Text('Coba Lagi'))
+        ],
       ),
     );
   }

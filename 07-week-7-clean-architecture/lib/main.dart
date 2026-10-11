@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:week5_offline_notes/features/settings/presentation/providers/settings_providers.dart';
 
 import 'router.dart';
-import 'pages/settings_pages.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

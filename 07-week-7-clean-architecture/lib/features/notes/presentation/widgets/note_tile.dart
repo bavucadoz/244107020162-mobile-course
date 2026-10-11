@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../data/local/note.dart';
+import '../../domain/entities/note.dart';
+
+import '../../../../core/format.dart'; 
 
 class NoteTile extends StatelessWidget {
   const NoteTile({
@@ -15,10 +17,8 @@ class NoteTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Format tanggal dan waktu perubahan (updatedAt)
-    final date = note.updatedAt.toLocal();
-    final formattedDate =
-        '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    // dari AppFormat
+    final formattedDate = AppFormat.dateToString(note.updatedAt);
 
     return ListTile(
       onTap: onTap,

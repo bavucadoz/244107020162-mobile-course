@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../data/local/note.dart';
-import '../providers.dart';
+import '../../domain/entities/note.dart';
+import '../providers/notes_providers.dart';
 
-final noteDetailProvider =
-    FutureProvider.autoDispose.family<Note?, int>((ref, id) async {
+import '../../../../core/format.dart'; 
+
+final noteDetailProvider = FutureProvider.autoDispose.family<Note?, int>((ref, id) async {
   final repo = ref.watch(noteRepositoryProvider);
-  return repo.fetchNoteById(id);
+  final result = await repo.fetchNoteById(id);
+  
+  if (result.failure != null) {
+    throw Exception(result.failure!.message);
+  }
+  
+  return result.note;
 });
 
 class NoteDetailPage extends ConsumerWidget {
@@ -59,7 +66,7 @@ class NoteDetailPage extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Terakhir diperbarui: ${note.updatedAt.toLocal()}',
+                  'Terakhir diperbarui: ${AppFormat.dateToString(note.updatedAt)}',
                   style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                 ),
                 const Divider(height: 32),
