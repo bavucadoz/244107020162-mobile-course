@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:week5_offline_notes/core/local/db.dart';
+import 'package:week5_offline_notes/core/network/api_client.dart';
+import 'package:week5_offline_notes/features/notes/data/repositories/note_repository_impl.dart';
+import 'package:week5_offline_notes/features/notes/presentation/providers/notes_providers.dart';
+import 'package:week5_offline_notes/features/posts/data/repositories/post_repository_impl.dart';
+import 'package:week5_offline_notes/features/posts/presentation/providers/posts_providers.dart';
 import 'package:week5_offline_notes/features/settings/presentation/providers/settings_providers.dart';
 
 import 'router.dart';
@@ -7,7 +13,19 @@ import 'router.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(const ProviderScope(child: MyApp()));
+  runApp(
+  ProviderScope(
+    overrides: [
+      noteRepositoryProvider.overrideWithValue(
+        NoteRepositoryImpl(openDb: openNotesDb),
+      ),
+      postRepositoryProvider.overrideWithValue(
+        PostRepositoryImpl(apiClient: createDio(), openDb: openNotesDb),
+      ),
+    ],
+    child: const MyApp(),
+  ),
+);
 }
 
 class MyApp extends ConsumerWidget {
