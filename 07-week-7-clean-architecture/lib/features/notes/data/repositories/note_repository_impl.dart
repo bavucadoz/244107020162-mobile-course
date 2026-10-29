@@ -121,4 +121,10 @@ class NoteRepositoryImpl implements NoteRepository {
       return LocalFailure('Gagal menghapus catatan: $e');
     }
   }
+
+  @override
+  Future<void> save(Note note) {
+    // TODO: implement save
+    throw UnimplementedError();
+  }
 }

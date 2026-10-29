@@ -48,6 +48,12 @@ class FakeNoteRepository implements NoteRepository {
   Future<Failure?> markAllSynced() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> save(Note note) {
+    // TODO: implement save
+    throw UnimplementedError();
+  }
 }
 
 void main() {
