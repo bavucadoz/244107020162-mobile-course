@@ -12,5 +12,7 @@ abstract class NoteRepository {
   Future<({int count, Failure? failure})> countDirty();
   Future<Failure?> markAllSynced();
   Future<Failure?> deleteNote(int id);
+
+  Future<void> save(Note note) async {}
 }
 
