@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../../domain/entities/note.dart';
 
-import '../../../../core/format.dart'; 
+import '../../../../core/format.dart';
 
 class NoteTile extends StatelessWidget {
   const NoteTile({
@@ -61,10 +62,7 @@ class NoteTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'Diperbarui: $formattedDate • Status: ${note.dirty ? "Dirty" : "Synced"}',
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
           ),
         ],
       ),

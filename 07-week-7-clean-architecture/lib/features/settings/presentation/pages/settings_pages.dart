@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 // Import file provider yang baru saja dipisah
-import '../providers/settings_providers.dart'; 
+import '../providers/settings_providers.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -13,9 +14,7 @@ class SettingsPage extends ConsumerWidget {
     final isForceOffline = ref.watch(forceOfflineProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pengaturan'),
-      ),
+      appBar: AppBar(title: const Text('Pengaturan')),
       body: ListView(
         children: [
           SwitchListTile(

@@ -15,4 +15,3 @@ abstract class NoteRepository {
 
   Future<void> save(Note note) async {}
 }
-

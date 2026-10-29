@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../domain/entities/note.dart';
 import '../providers/notes_providers.dart';
 
-import '../../../../core/format.dart'; 
+import '../../../../core/format.dart';
 
-final noteDetailProvider = FutureProvider.autoDispose.family<Note?, int>((ref, id) async {
+final noteDetailProvider = FutureProvider.autoDispose.family<Note?, int>((
+  ref,
+  id,
+) async {
   final repo = ref.watch(noteRepositoryProvider);
   final result = await repo.fetchNoteById(id);
-  
+
   if (result.failure != null) {
     throw Exception(result.failure!.message);
   }
-  
+
   return result.note;
 });
 
@@ -26,15 +30,11 @@ class NoteDetailPage extends ConsumerWidget {
     final noteAsync = ref.watch(noteDetailProvider(noteId));
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Detail Catatan #$noteId'),
-      ),
+      appBar: AppBar(title: Text('Detail Catatan #$noteId')),
       body: noteAsync.when(
         data: (note) {
           if (note == null) {
-            return const Center(
-              child: Text('Catatan tidak ditemukan.'),
-            );
+            return const Center(child: Text('Catatan tidak ditemukan.'));
           }
           return Padding(
             padding: const EdgeInsets.all(16.0),
@@ -46,9 +46,8 @@ class NoteDetailPage extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         note.title,
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
                     if (note.dirty)

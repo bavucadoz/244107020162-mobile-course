@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+
 import '../../../../core/local/prefs.dart';
 
 final prefsRepositoryProvider = Provider((ref) => PrefsRepository());
@@ -19,8 +20,9 @@ class DarkModeNotifier extends AsyncNotifier<bool> {
   }
 }
 
-final darkModeProvider =
-    AsyncNotifierProvider<DarkModeNotifier, bool>(DarkModeNotifier.new);
+final darkModeProvider = AsyncNotifierProvider<DarkModeNotifier, bool>(
+  DarkModeNotifier.new,
+);
 
 // Provider untuk memaksa mode offline pada fitur Posts (Global State)
 final forceOfflineProvider = StateProvider<bool>((ref) => false);
