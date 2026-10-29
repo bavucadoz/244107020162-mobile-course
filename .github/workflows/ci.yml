@@ -17,6 +17,10 @@ jobs:
           channel: stable
           cache: true
       - run: flutter --version
+      - name: Debug struktur
+        run: |
+          pwd
+          ls -la
       - run: flutter pub get
       - run: dart format --set-exit-if-changed lib test
       - run: flutter analyze
