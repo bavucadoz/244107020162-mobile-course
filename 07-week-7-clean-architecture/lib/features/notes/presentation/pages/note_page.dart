@@ -6,14 +6,14 @@ import '../providers/notes_providers.dart';
 import '../widgets/note_tile.dart';
 
 final dirtyCountProvider = FutureProvider.autoDispose<int>((ref) async {
-  ref.watch(notesProvider); 
+  ref.watch(notesProvider);
   final repo = ref.watch(noteRepositoryProvider);
-  
+
   final result = await repo.countDirty();
   if (result.failure != null) {
     throw Exception(result.failure!.message);
   }
-  return result.count; 
+  return result.count;
 });
 
 class NotesPage extends ConsumerWidget {
@@ -49,7 +49,9 @@ class NotesPage extends ConsumerWidget {
             onPressed: () async {
               if (titleController.text.isNotEmpty) {
                 // Memanggil layer data (atau Use Case)
-                await ref.read(noteRepositoryProvider).addNote(
+                await ref
+                    .read(noteRepositoryProvider)
+                    .addNote(
                       title: titleController.text,
                       body: bodyController.text,
                     );
@@ -146,7 +148,7 @@ class ErrorView extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(message, style: const TextStyle(color: Colors.red)),
-          ElevatedButton(onPressed: onRetry, child: const Text('Coba Lagi'))
+          ElevatedButton(onPressed: onRetry, child: const Text('Coba Lagi')),
         ],
       ),
     );

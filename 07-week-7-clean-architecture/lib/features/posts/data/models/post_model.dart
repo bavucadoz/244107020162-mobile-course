@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import '../../domain/entities/post.dart';
 
 class PostModel extends Post {
@@ -30,10 +31,5 @@ class PostModel extends Post {
 
   String toRawJson() => json.encode(toJson());
 
-  Post toEntity() => Post(
-    userId: userId,
-    id: id,
-    title: title,
-    body: body,
-  );
+  Post toEntity() => Post(userId: userId, id: id, title: title, body: body);
 }

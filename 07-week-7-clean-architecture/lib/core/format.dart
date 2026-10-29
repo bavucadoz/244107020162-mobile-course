@@ -3,15 +3,25 @@ class AppFormat {
   static String dateToString(DateTime date) {
     final localDate = date.toLocal();
     final day = localDate.day.toString().padLeft(2, '0');
-    
+
     // Konversi angka bulan ke nama bulan sederhana
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Ags',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
     ];
     final month = months[localDate.month - 1];
     final year = localDate.year;
-    
+
     final hour = localDate.hour.toString().padLeft(2, '0');
     final minute = localDate.minute.toString().padLeft(2, '0');
 
