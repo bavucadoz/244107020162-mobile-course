@@ -70,7 +70,10 @@ Fitur memakai package yang sudah tersedia di `pubspec.yaml` proyek:
 2. `ai-api-key-settings.png` — dialog pengaturan API key dengan key tidak terlihat.
   > ![api key](screenshots/ai-api-key-settings.png)
 3. `ai-chat-streaming.png` — pesan pengguna dan respons AI yang sedang/selesai ditampilkan.
-  > ![output test](screenshots/ai-chat-streaming.png)
+  > ![output test](screenshots/ai-chat-streaming-01.png)
+  > ![output test](screenshots/ai-chat-streaming-02.png)
+  > ![output test](screenshots/ai-chat-streaming-03.png)
+  > ![output test](screenshots/ai-chat-streaming-04.png)
 4. `ai-error-fallback.png` — tampilan fallback ketika API key tidak diatur atau koneksi gagal.
   > ![error](screenshots/ai-error-fallback.png)
 5. `flutter-test` — hasil flutter test.

@@ -92,6 +92,18 @@ class AiChatController extends Notifier<AiChatState> {
       return 'API key Gemini belum diatur. Ketuk ikon kunci untuk mengaturnya.';
     }
     if (error is GeminiApiException) return error.message;
+    if (error is GeminiIncompleteResponseException) {
+      return 'Respons Gemini terputus sebelum selesai. Periksa koneksi lalu tekan Coba lagi.';
+    }
+    if (error is GeminiTruncatedResponseException) {
+      if (error.finishReason == 'MAX_TOKENS') {
+        return 'Jawaban Gemini mencapai batas token dan terpotong. Coba kirim pertanyaan yang lebih spesifik.';
+      }
+      if (error.finishReason == 'SAFETY') {
+        return 'Gemini menghentikan jawaban karena pemeriksaan keamanan.';
+      }
+      return 'Gemini menghentikan jawaban sebelum selesai (${error.finishReason}). Silakan coba pertanyaan lain.';
+    }
     if (error is FormatException) {
       return 'Respons Gemini tidak dapat dibaca. Periksa format respons API lalu coba lagi.';
     }
@@ -121,13 +133,13 @@ class AiChatController extends Notifier<AiChatState> {
         state = state.copyWith(
           messages: [
             ...conversation,
-            ChatMessage(role: ChatRole.model, text: responseBuffer.toString()),
+            ChatMessage(role: ChatRole.model, text: normalizeGeminiResponseText(responseBuffer.toString())),
           ],
           isLoading: true,
         );
       }
 
-      final responseText = responseBuffer.toString().trim();
+      final responseText = normalizeGeminiResponseText(responseBuffer.toString()).trim();
       if (responseText.isEmpty) {
         state = state.copyWith(
           messages: [

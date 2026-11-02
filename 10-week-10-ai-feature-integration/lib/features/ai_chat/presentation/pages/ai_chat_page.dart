@@ -1,5 +1,7 @@
+import 'package:campus_notify/features/ai_chat/data/repositories/gemini_ai_chat_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../../domain/entities/chat_message.dart';
 import '../providers/ai_chat_provider.dart';
@@ -398,7 +400,19 @@ class _MessageBubble extends StatelessWidget {
                 height: 18,
                 child: LinearProgressIndicator(),
               )
-            : SelectableText(message.text),
+            : isUser
+                ? SelectableText(message.text)
+                : MarkdownBody(
+                    data: normalizeGeminiResponseText(message.text),
+                    selectable: true,
+                    softLineBreak: true,
+                    styleSheet: MarkdownStyleSheet.fromTheme(
+                      Theme.of(context),
+                    ).copyWith(
+                      p: Theme.of(context).textTheme.bodyMedium,
+                      blockSpacing: 8,
+                    ),
+                  ),
       ),
     );
   }

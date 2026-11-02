@@ -11,6 +11,10 @@ import '../../domain/repositories/ai_chat_repository.dart';
 const geminiSystemPrompt = '''
 Kamu adalah CampusMate, asisten belajar dan produktivitas kampus yang ramah.
 Jawab dalam Bahasa Indonesia dengan jelas, ringkas, dan terstruktur.
+Untuk pertanyaan penjelasan atau perbandingan, berikan jawaban utuh: definisi,
+perbedaan atau poin penting, contoh sederhana, dan simpulan singkat bila relevan.
+Jangan berhenti pada judul atau satu poin pembuka, dan jangan memulai jawaban dengan
+tanda titik dua yang berdiri sendiri.
 Bantu pengguna memahami materi, merangkum konsep, menyusun ide, dan mengelola produktivitas belajar.
 Jangan mengarang jadwal, kebijakan, nilai, atau informasi resmi kampus yang tidak diberikan.
 Jangan meminta atau mengungkap NIK, kata sandi, token, nomor telepon, alamat, maupun data pribadi.
@@ -27,8 +31,33 @@ class GeminiApiException implements Exception {
   String toString() => message;
 }
 
-/// Reads the text field from one Gemini streaming response chunk.
-/// Returns null for valid chunks that do not contain generated text.
+/// One SSE event returned by Gemini. A final event can contain a finishReason
+/// without containing any additional text.
+class GeminiStreamEvent {
+  const GeminiStreamEvent({this.text, this.finishReason});
+
+  final String? text;
+  final String? finishReason;
+}
+
+class GeminiIncompleteResponseException implements Exception {
+  const GeminiIncompleteResponseException();
+
+  @override
+  String toString() =>
+      'Stream Gemini berakhir sebelum mengirim finishReason. Respons mungkin terputus.';
+}
+
+class GeminiTruncatedResponseException implements Exception {
+  const GeminiTruncatedResponseException(this.finishReason);
+
+  final String finishReason;
+
+  @override
+  String toString() => 'Respons Gemini dihentikan: $finishReason.';
+}
+
+/// Reads generated text from one Gemini GenerateContentResponse.
 String? extractGeminiText(Object? payload) {
   if (payload is! Map<String, dynamic>) return null;
 
@@ -57,6 +86,81 @@ String? extractGeminiText(Object? payload) {
 
   final result = text.toString();
   return result.isEmpty ? null : result;
+}
+
+/// Parses Gemini Server-Sent Events and preserves the terminal finishReason.
+/// A normal EOF by itself is NOT considered proof that generation completed.
+Stream<GeminiStreamEvent> parseGeminiSseEvents(
+  Stream<List<int>> byteStream,
+) async* {
+  final lines = utf8.decoder.bind(byteStream).transform(const LineSplitter());
+  final dataLines = <String>[];
+
+  await for (final line in lines) {
+    if (line.isEmpty) {
+      final event = _decodeGeminiSseEvent(dataLines);
+      dataLines.clear();
+      if (event != null) yield event;
+      continue;
+    }
+
+    // Ignore SSE comments/heartbeats and non-data fields such as `event:`.
+    if (line.startsWith(':')) continue;
+
+    final separator = line.indexOf(':');
+    final field = separator == -1 ? line : line.substring(0, separator);
+    if (field != 'data') continue;
+
+    var value = separator == -1 ? '' : line.substring(separator + 1);
+    if (value.startsWith(' ')) value = value.substring(1);
+    dataLines.add(value);
+  }
+
+  // Some servers close the stream without a final blank-line delimiter.
+  final remainingEvent = _decodeGeminiSseEvent(dataLines);
+  if (remainingEvent != null) yield remainingEvent;
+}
+
+GeminiStreamEvent? _decodeGeminiSseEvent(List<String> dataLines) {
+  if (dataLines.isEmpty) return null;
+
+  final data = dataLines.join('\n').trim();
+  if (data.isEmpty || data == '[DONE]') return null;
+
+  final decoded = jsonDecode(data);
+  if (decoded is! Map<String, dynamic>) return null;
+
+  final text = extractGeminiText(decoded);
+  String? finishReason;
+  final candidates = decoded['candidates'];
+  if (candidates is List && candidates.isNotEmpty) {
+    final firstCandidate = candidates.first;
+    if (firstCandidate is Map<String, dynamic>) {
+      final reason = firstCandidate['finishReason'];
+      if (reason is String && reason.isNotEmpty) finishReason = reason;
+    }
+  }
+
+  if (text == null && finishReason == null) return null;
+  return GeminiStreamEvent(text: text, finishReason: finishReason);
+}
+
+/// Compatibility helper used by parser tests and simple consumers that only
+/// need text deltas. Production requests use [parseGeminiSseEvents] so they can
+/// validate the terminal finishReason.
+Stream<String> parseGeminiSseStream(Stream<List<int>> byteStream) async* {
+  await for (final event in parseGeminiSseEvents(byteStream)) {
+    final text = event.text;
+    if (text != null) yield text;
+  }
+}
+
+/// Removes a stray standalone leading colon sometimes included in generated
+/// Markdown, without changing normal punctuation inside the answer.
+String normalizeGeminiResponseText(String input) {
+  return input
+      .replaceFirst(RegExp(r'^\s*:\s*(?:\r?\n)+'), '')
+      .trimLeft();
 }
 
 class GeminiAiChatRepository implements AiChatRepository {
@@ -202,7 +306,11 @@ class GeminiAiChatRepository implements AiChatRepository {
           .toList(growable: false),
       'generationConfig': {
         'temperature': 0.6,
-        'maxOutputTokens': 512,
+        // Gemini 3.8 Flash defaults to medium thinking. maxOutputTokens also
+        // counts internal thinking tokens, so a 512-token cap can leave only
+        // a few words for the visible answer. LOW reserves more budget for text.
+        'thinkingConfig': {'thinkingLevel': 'LOW'},
+        'maxOutputTokens': 2048,
       },
     };
 
@@ -226,18 +334,20 @@ class GeminiAiChatRepository implements AiChatRepository {
         throw const FormatException('Respons streaming Gemini kosong.');
       }
 
-      final decodedLines = utf8.decoder
-          .bind(body.stream.cast<List<int>>())
-          .transform(const LineSplitter());
+      String? finishReason;
+      await for (final event in
+          parseGeminiSseEvents(body.stream.cast<List<int>>())) {
+        if (event.text != null) yield event.text!;
+        if (event.finishReason != null) {
+          finishReason = event.finishReason;
+        }
+      }
 
-      await for (final line in decodedLines) {
-        if (!line.startsWith('data:')) continue;
-        final data = line.substring(5).trim();
-        if (data.isEmpty || data == '[DONE]') continue;
-
-        final decoded = jsonDecode(data);
-        final text = extractGeminiText(decoded);
-        if (text != null) yield text;
+      if (finishReason == null) {
+        throw const GeminiIncompleteResponseException();
+      }
+      if (finishReason != 'STOP') {
+        throw GeminiTruncatedResponseException(finishReason);
       }
     } on DioException catch (error) {
       final details = await _readDioErrorDetails(error);
