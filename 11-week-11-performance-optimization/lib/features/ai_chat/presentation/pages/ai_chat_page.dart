@@ -18,6 +18,7 @@ class AiChatPage extends ConsumerStatefulWidget {
 class _AiChatPageState extends ConsumerState<AiChatPage> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  bool _scrollCallbackPending = false;
 
   @override
   void dispose() {
@@ -27,20 +28,30 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   }
 
   void _scrollToLatest() {
+    // Streaming can emit many state updates in a short time. Coalesce them
+    // into one post-frame callback instead of scheduling repeated animations.
+    if (_scrollCallbackPending) return;
+    _scrollCallbackPending = true;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
-      }
+      _scrollCallbackPending = false;
+      if (!mounted || !_scrollController.hasClients) return;
+
+      final position = _scrollController.position;
+      if ((position.maxScrollExtent - position.pixels).abs() < 1) return;
+
+      _scrollController.animateTo(
+        position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
     });
   }
 
   Future<void> _sendMessage() async {
     final text = _messageController.text;
     if (text.trim().isEmpty) return;
+
     _messageController.clear();
     await ref.read(aiChatControllerProvider.notifier).sendMessage(text);
     _scrollToLatest();
@@ -50,9 +61,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     final hasKey = await ref.read(aiChatRepositoryProvider).hasApiKey();
     if (!mounted) return;
 
-    // The dialog owns its TextEditingController. This is important because
-    // showDialog's Future can complete as soon as pop is requested, while the
-    // reverse route animation may still be rebuilding the TextField.
+    // The dialog owns its TextEditingController. The controller is disposed
+    // by the dialog State after its TextField subtree leaves the widget tree.
     final result = await showDialog<Object?>(
       context: context,
       builder: (_) => _ApiKeyDialog(hasKey: hasKey),
@@ -90,13 +100,17 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    final chatState = ref.watch(aiChatControllerProvider);
+    // Listen without watching the complete state. A streamed token therefore
+    // does not rebuild this Scaffold; only the message-list consumer updates.
     ref.listen(aiChatControllerProvider, (previous, next) {
-      final previousLast = previous?.messages.isNotEmpty == true
-          ? previous!.messages.last.text
+      final previousMessages = previous?.messages ?? const <ChatMessage>[];
+      final nextMessages = next.messages;
+      final previousLast = previousMessages.isNotEmpty
+          ? previousMessages.last.text
           : '';
-      final nextLast = next.messages.isNotEmpty ? next.messages.last.text : '';
-      if (previous?.messages.length != next.messages.length ||
+      final nextLast = nextMessages.isNotEmpty ? nextMessages.last.text : '';
+
+      if (previousMessages.length != nextMessages.length ||
           previousLast != nextLast) {
         _scrollToLatest();
       }
@@ -118,128 +132,70 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
             onPressed: _showApiKeyDialog,
             icon: const Icon(Icons.key_outlined),
           ),
-          IconButton(
-            tooltip: 'Percakapan baru',
-            onPressed: chatState.isLoading
-                ? null
-                : () => ref.read(aiChatControllerProvider.notifier).clearConversation(),
-            icon: const Icon(Icons.refresh),
-          ),
+          const _NewConversationButton(),
         ],
       ),
       body: Column(
         children: [
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.secondaryContainer,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.privacy_tip_outlined, size: 19),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Jangan kirim NIK, kata sandi, token, nomor telepon, alamat, atau data rahasia. Jawaban AI perlu diperiksa kembali.',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const _ChatPrivacyNotice(),
           Expanded(
-            child: chatState.messages.isEmpty
-                ? const _WelcomeView()
-                : ListView.builder(
-                    key: const Key('ai-chat-messages'),
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
-                    itemCount: chatState.messages.length,
-                    itemBuilder: (context, index) {
-                      final message = chatState.messages[index];
-                      final isPending = chatState.isLoading &&
-                          index == chatState.messages.length - 1 &&
-                          message.role == ChatRole.model &&
-                          message.text.isEmpty;
-                      return _MessageBubble(
-                        message: message,
-                        isPending: isPending,
-                      );
-                    },
-                  ),
-          ),
-          if (chatState.errorMessage != null)
-            Container(
-              key: const Key('ai-error-fallback'),
-              width: double.infinity,
-              margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(chatState.errorMessage!),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      onPressed: () => ref
-                          .read(aiChatControllerProvider.notifier)
-                          .retryLastMessage(),
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Coba lagi'),
-                    ),
-                  ),
-                ],
-              ),
+            // Keep list painting isolated from the fixed notice and composer.
+            child: RepaintBoundary(
+              child: _ChatMessageList(controller: _scrollController),
             ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      key: const Key('ai-chat-input'),
-                      controller: _messageController,
-                      minLines: 1,
-                      maxLines: 4,
-                      maxLength: 2000,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _sendMessage(),
-                      decoration: const InputDecoration(
-                        hintText: 'Tulis pertanyaan...',
-                        counterText: '',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton.filled(
-                    key: const Key('ai-send-button'),
-                    onPressed: chatState.isLoading ? null : _sendMessage,
-                    icon: chatState.isLoading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send),
-                  ),
-                ],
-              ),
+          ),
+          const _ChatErrorBanner(),
+          _ChatComposer(
+            controller: _messageController,
+            onSend: _sendMessage,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NewConversationButton extends ConsumerWidget {
+  const _NewConversationButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isLoading = ref.watch(
+      aiChatControllerProvider.select((state) => state.isLoading),
+    );
+
+    return IconButton(
+      tooltip: 'Percakapan baru',
+      onPressed: isLoading
+          ? null
+          : () => ref.read(aiChatControllerProvider.notifier).clearConversation(),
+      icon: const Icon(Icons.refresh),
+    );
+  }
+}
+
+class _ChatPrivacyNotice extends StatelessWidget {
+  const _ChatPrivacyNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.privacy_tip_outlined, size: 19),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Jangan kirim NIK, kata sandi, token, nomor telepon, alamat, atau data rahasia. Jawaban AI perlu diperiksa kembali.',
+              style: TextStyle(fontSize: 12),
             ),
           ),
         ],
@@ -248,6 +204,140 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   }
 }
 
+class _ChatMessageList extends ConsumerWidget {
+  const _ChatMessageList({required this.controller});
+
+  final ScrollController controller;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final messages = ref.watch(
+      aiChatControllerProvider.select((state) => state.messages),
+    );
+    final isLoading = ref.watch(
+      aiChatControllerProvider.select((state) => state.isLoading),
+    );
+
+    if (messages.isEmpty) return const _WelcomeView();
+
+    return ListView.builder(
+      key: const Key('ai-chat-messages'),
+      controller: controller,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
+      itemCount: messages.length,
+      itemBuilder: (context, index) {
+        final message = messages[index];
+        final isPending = isLoading &&
+            index == messages.length - 1 &&
+            message.role == ChatRole.model &&
+            message.text.isEmpty;
+
+        return _MessageBubble(
+          message: message,
+          isPending: isPending,
+        );
+      },
+    );
+  }
+}
+
+class _ChatErrorBanner extends ConsumerWidget {
+  const _ChatErrorBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final errorMessage = ref.watch(
+      aiChatControllerProvider.select((state) => state.errorMessage),
+    );
+
+    if (errorMessage == null) return const SizedBox.shrink();
+
+    return Container(
+      key: const Key('ai-error-fallback'),
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(errorMessage),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => ref
+                  .read(aiChatControllerProvider.notifier)
+                  .retryLastMessage(),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Coba lagi'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChatComposer extends ConsumerWidget {
+  const _ChatComposer({required this.controller, required this.onSend});
+
+  final TextEditingController controller;
+  final VoidCallback onSend;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isLoading = ref.watch(
+      aiChatControllerProvider.select((state) => state.isLoading),
+    );
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: TextField(
+                key: const Key('ai-chat-input'),
+                controller: controller,
+                minLines: 1,
+                maxLines: 4,
+                maxLength: 2000,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => onSend(),
+                decoration: const InputDecoration(
+                  hintText: 'Tulis pertanyaan...',
+                  counterText: '',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.filled(
+              key: const Key('ai-send-button'),
+              onPressed: isLoading ? null : onSend,
+              icon: isLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.send),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _ApiKeyDialog extends StatefulWidget {
   const _ApiKeyDialog({required this.hasKey});
@@ -263,8 +353,6 @@ class _ApiKeyDialogState extends State<_ApiKeyDialog> {
 
   @override
   void dispose() {
-    // The controller is disposed with the dialog State, after Flutter has
-    // removed the TextField subtree (including its transition widgets).
     _controller.dispose();
     super.dispose();
   }
@@ -391,7 +479,9 @@ class _MessageBubble extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 5),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isUser ? colorScheme.primaryContainer : colorScheme.surfaceContainerHighest,
+          color: isUser
+              ? colorScheme.primaryContainer
+              : colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
         ),
         child: isPending

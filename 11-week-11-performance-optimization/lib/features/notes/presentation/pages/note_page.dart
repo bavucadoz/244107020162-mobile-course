@@ -1,3 +1,5 @@
+// ignore_for_file: unused_result
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -28,58 +30,39 @@ class NotesPage extends ConsumerStatefulWidget {
 class _NotesPageState extends ConsumerState<NotesPage> {
   String _query = '';
 
-  void _showAddDialog(BuildContext context, WidgetRef ref) {
-    final titleController = TextEditingController();
-    final bodyController = TextEditingController();
-
-    showDialog(
+  Future<void> _showAddDialog() async {
+    final draft = await showDialog<_NoteDraft>(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Tambah Catatan'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleController,
-              decoration: const InputDecoration(labelText: 'Judul'),
-            ),
-            TextField(
-              controller: bodyController,
-              decoration: const InputDecoration(labelText: 'Isi'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleController.text.isNotEmpty) {
-                // Memanggil layer data (atau Use Case)
-                await ref
-                    .read(noteRepositoryProvider)
-                    .addNote(
-                      title: titleController.text,
-                      body: bodyController.text,
-                    );
-                // Meminta UI memuat ulang data
-                ref.invalidate(notesProvider);
-                if (dialogCtx.mounted) Navigator.pop(dialogCtx);
-              }
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
-      ),
+      builder: (_) => const _AddNoteDialog(),
     );
+
+    if (!mounted || draft == null) return;
+
+    final result = await ref
+        .read(noteRepositoryProvider)
+        .addNote(title: draft.title, body: draft.body);
+
+    if (!mounted) return;
+    if (result.failure != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.failure!.message)),
+      );
+      return;
+    }
+
+    ref.invalidate(notesProvider);
+  }
+
+  Future<void> _refreshNotes() async {
+    try {
+      await ref.refresh(notesProvider.future);
+    } catch (_) {
+      // The FutureProvider exposes the error to notesAsync and ErrorView.
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final ref = this.ref;
-    // 1. Pantau State dari Provider
     final notesAsync = ref.watch(notesProvider);
     final dirtyCount = ref.watch(dirtyCountProvider).value ?? 0;
 
@@ -101,7 +84,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
             onPressed: () async {
               final repo = ref.read(noteRepositoryProvider);
               await Future.delayed(const Duration(seconds: 1));
-              await repo.markAllSynced(); // Pastikan ini ada di interface Repository Anda
+              await repo.markAllSynced();
               ref.invalidate(notesProvider);
             },
           ),
@@ -111,7 +94,6 @@ class _NotesPageState extends ConsumerState<NotesPage> {
           ),
         ],
       ),
-      // 2. Gunakan pola jobsheet (state.when) di dalam body Scaffold
       body: notesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErrorView(
@@ -144,46 +126,134 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                 ),
               ),
               Expanded(
-                child: filteredNotes.isEmpty
-                    ? NotesEmptyState(query: _query)
-                    : ListView.builder(
-                        itemCount: filteredNotes.length,
-                        itemBuilder: (context, index) {
-                          final note = filteredNotes[index];
-                          return NoteTile(
-                            note: note,
-                            onTap: () {
-                              if (note.id != null) {
-                                context.push('/note/${note.id}');
-                              }
-                            },
-                            onDelete: () async {
-                              if (note.id != null) {
-                                await ref
-                                    .read(noteRepositoryProvider)
-                                    .deleteNote(note.id!);
-                                ref.invalidate(notesProvider);
-                              }
-                            },
-                          );
-                        },
-                      ),
+                child: RefreshIndicator(
+                  onRefresh: _refreshNotes,
+                  child: filteredNotes.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            SizedBox(
+                              height: 260,
+                              child: NotesEmptyState(query: _query),
+                            ),
+                          ],
+                        )
+                      : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: filteredNotes.length,
+                          itemBuilder: (context, index) {
+                            final note = filteredNotes[index];
+                            return NoteTile(
+                              note: note,
+                              onTap: () {
+                                if (note.id != null) {
+                                  context.push('/note/${note.id}');
+                                }
+                              },
+                              onDelete: () async {
+                                if (note.id != null) {
+                                  await ref
+                                      .read(noteRepositoryProvider)
+                                      .deleteNote(note.id!);
+                                  ref.invalidate(notesProvider);
+                                }
+                              },
+                            );
+                          },
+                        ),
+                ),
               ),
             ],
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddDialog(context, ref),
+        onPressed: _showAddDialog,
         child: const Icon(Icons.add),
       ),
     );
   }
 }
 
-// --- Widget Error (Bisa dipisah ke file tersendiri) ---
+class _NoteDraft {
+  const _NoteDraft({required this.title, required this.body});
+
+  final String title;
+  final String body;
+}
+
+class _AddNoteDialog extends StatefulWidget {
+  const _AddNoteDialog();
+
+  @override
+  State<_AddNoteDialog> createState() => _AddNoteDialogState();
+}
+
+class _AddNoteDialogState extends State<_AddNoteDialog> {
+  final _titleController = TextEditingController();
+  final _bodyController = TextEditingController();
+  String? _titleError;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _bodyController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final title = _titleController.text.trim();
+    if (title.isEmpty) {
+      setState(() => _titleError = 'Judul catatan wajib diisi.');
+      return;
+    }
+
+    Navigator.of(context).pop(
+      _NoteDraft(title: title, body: _bodyController.text.trim()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Tambah Catatan'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _titleController,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              labelText: 'Judul',
+              errorText: _titleError,
+            ),
+          ),
+          TextField(
+            controller: _bodyController,
+            textCapitalization: TextCapitalization.sentences,
+            minLines: 1,
+            maxLines: 4,
+            decoration: const InputDecoration(labelText: 'Isi'),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Batal'),
+        ),
+        ElevatedButton(
+          onPressed: _save,
+          child: const Text('Simpan'),
+        ),
+      ],
+    );
+  }
+}
+
 class ErrorView extends StatelessWidget {
   const ErrorView({super.key, required this.message, required this.onRetry});
+
   final String message;
   final VoidCallback onRetry;
 
@@ -194,7 +264,10 @@ class ErrorView extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(message, style: const TextStyle(color: Colors.red)),
-          ElevatedButton(onPressed: onRetry, child: const Text('Coba Lagi')),
+          ElevatedButton(
+            onPressed: onRetry,
+            child: const Text('Coba Lagi'),
+          ),
         ],
       ),
     );
