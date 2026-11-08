@@ -1,9 +1,27 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
+
+/// Mengarahkan sqflite ke implementasi SQLite yang sesuai dengan platform.
+/// Pada Web, database disimpan menggunakan IndexedDB melalui SQLite WASM.
+void initializeDatabaseFactory() {
+  if (kIsWeb) {
+    databaseFactory = databaseFactoryFfiWeb;
+  }
+}
 
 Future<Database> openNotesDb() async {
-  final dir = await getDatabasesPath();
+  // Pastikan factory Web sudah diatur sebelum memanggil openDatabase.
+  initializeDatabaseFactory();
+
+  // getDatabasesPath() tidak diperlukan pada Web. Gunakan nama database
+  // relatif agar implementasi Web menyimpannya di IndexedDB.
+  final dbPath = kIsWeb
+      ? 'offline_notes.db'
+      : '${await getDatabasesPath()}/offline_notes.db';
+
   return openDatabase(
-    '$dir/offline_notes.db',
+    dbPath,
     version: 1,
     onCreate: (db, version) async {
       await db.execute('''

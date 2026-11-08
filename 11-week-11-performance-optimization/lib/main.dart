@@ -13,6 +13,9 @@ import 'router.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Inisialisasi database factory sebelum provider/repository digunakan.
+  initializeDatabaseFactory();
+
   runApp(
     ProviderScope(
       overrides: [
