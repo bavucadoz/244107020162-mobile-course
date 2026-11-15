@@ -1,23 +1,100 @@
-name: ci
+
+name: Flutter CI
+
 on:
+  push:
+    branches: [develop, main]
   pull_request:
     branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flutter-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  verify:
+  discover:
+    name: Discover Flutter Projects
     runs-on: ubuntu-latest
+
+    outputs:
+      projects: ${{ steps.find-projects.outputs.projects }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Find Flutter Projects
+        id: find-projects
+        shell: bash
+        run: |
+          mapfile -t projects < <(
+            find . -type f -name "pubspec.yaml" \
+              -not -path "*/.dart_tool/*" \
+              -not -path "*/build/*" \
+              -printf '%h\n' | sort -u
+          )
+
+          if [ "${#projects[@]}" -eq 0 ]; then
+            echo "No Flutter projects found!"
+            exit 1
+          fi
+
+          echo "Discovered ${#projects[@]} Flutter project(s):"
+          printf '%s\n' "${projects[@]}"
+
+          json=$(printf '%s\n' "${projects[@]}" | jq -R . | jq -s -c .)
+
+          echo "projects=$json" >> "$GITHUB_OUTPUT"
+
+  verify:
+    name: Verify ${{ matrix.project }}
+    needs: discover
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJson(needs.discover.outputs.projects) }}
+
     defaults:
       run:
-        working-directory: 07-week-7-clean-architecture
+        working-directory: ${{ matrix.project }}
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.47.6'
           channel: stable
+          flutter-version: '3.47.6'
           cache: true
-      - run: flutter --version
-      - run: flutter pub get
-      - run: dart format --set-exit-if-changed lib test
-      - run: flutter analyze
-      - run: flutter test
+
+      - name: Flutter Version
+        run: flutter --version
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Check Dart Formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze Flutter Project
+        run: flutter analyze
+
+      - name: Run Tests with Coverage
+        run: flutter test --coverage
+
+      - name: Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ strategy.job-index }}
+          path: ${{ matrix.project }}/coverage/lcov.info
+          if-no-files-found: ignore
+          retention-days: 14
